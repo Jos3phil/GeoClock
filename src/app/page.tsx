@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Globe } from "lucide-react";
+import useTime from "@/hooks/use-time";
 
 export default function Home() {
-  const [time, setTime] = useState(new Date());
+  const time = useTime();
   const [location, setLocation] = useState({
     latitude: null,
     longitude: null,
@@ -13,24 +14,36 @@ export default function Home() {
   });
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setTime(new Date());
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
     if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setLocation({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            error: null,
-          });
-        },
-        (error) => {
+      navigator.permissions
+        .query({ name: "geolocation" })
+        .then((permissionStatus) => {
+          if (permissionStatus.state === "granted") {
+            navigator.geolocation.getCurrentPosition(
+              (position) => {
+                setLocation({
+                  latitude: position.coords.latitude,
+                  longitude: position.coords.longitude,
+                  error: null,
+                });
+              },
+              (error) => {
+                setLocation({
+                  latitude: null,
+                  longitude: null,
+                  error: error.message,
+                });
+              }
+            );
+          } else if (permissionStatus.state === "prompt") {
+            setLocation({
+              latitude: null,
+              longitude: null,
+              error: "Location permission not granted.",
+            });
+          }
+        })
+        .catch((error) => {
           setLocation({
             latitude: null,
             longitude: null,
@@ -71,7 +84,9 @@ export default function Home() {
             </div>
           ) : (
             <div className="text-red-500 text-sm">
-              Error: {location.error || "Fetching location..."}
+              {location.error
+                ? `Error: ${location.error}`
+                : "Location permission not granted."}
             </div>
           )}
         </CardContent>
